@@ -661,9 +661,9 @@
       <div class="sidebar-footer-row">
         <span>Last saved: <span id="last-saved">just now</span></span>
       </div>
-      <div class="sync-status-row" onclick="openSyncModal()" title="Confluence Sync Settings">
+      <div class="sync-status-row" onclick="openSyncModal()" title="Cloud Sync Settings">
         <div class="sync-dot off" id="sync-dot"></div>
-        <span id="sync-label">☁ Confluence sync</span>
+        <span id="sync-label">☁ Cloud sync</span>
       </div>
     </div>
   </aside>
@@ -1048,27 +1048,22 @@ function saveData() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     document.getElementById('last-saved').textContent = 'just now';
   } catch(e) {}
-  // Auto-push to Confluence if connected
-  if (localStorage.getItem('cf_token')) {
-    clearTimeout(window._cfSaveTimer);
-    window._cfSaveTimer = setTimeout(() => confluencePush(true), 2000);
+  // Auto-push to cloud if connected
+  if (localStorage.getItem('jb_key')) {
+    clearTimeout(window._jbSaveTimer);
+    window._jbSaveTimer = setTimeout(() => syncPush(true), 2000);
   }
 }
 
 // ──────────────────────────────────────────────────────────
-// CONFLUENCE SYNC
+// JSONBIN CLOUD SYNC  (free, no proxy needed, full CORS)
 // ──────────────────────────────────────────────────────────
-const CF_BASE    = 'https://rspproduct.atlassian.net/wiki';
-const CF_PAGE_ID = '1464991845';
-const CF_EMAIL   = 'justin_reisinger@resourcepro.com';
-const CF_TOKEN_KEY = 'cf_token';
-const CF_VERSION_KEY = 'cf_page_version';
+const JB_BASE    = 'https://api.jsonbin.io/v3';
+const JB_KEY_KEY = 'jb_key';
+const JB_BIN_KEY = 'jb_bin_id';
 
-function cfAuthHeader() {
-  const token = localStorage.getItem(CF_TOKEN_KEY);
-  if (!token) return null;
-  return 'Basic ' + btoa(CF_EMAIL + ':' + token);
-}
+function jbKey()   { return localStorage.getItem(JB_KEY_KEY); }
+function jbBinId() { return localStorage.getItem(JB_BIN_KEY); }
 
 function syncSetDot(state, label) {
   const dot = document.getElementById('sync-dot');
@@ -1077,112 +1072,105 @@ function syncSetDot(state, label) {
   lbl.textContent = label;
 }
 
-async function confluencePush(silent) {
-  const auth = cfAuthHeader();
-  if (!auth) return;
+async function syncPush(silent) {
+  const key = jbKey();
+  const binId = jbBinId();
+  if (!key || !binId) return;
   syncSetDot('busy', '☁ Syncing…');
   try {
-    // Get current version first
-    const verRes = await fetch(`${CF_BASE}/api/v2/pages/${CF_PAGE_ID}`, {
-      headers: { 'Authorization': auth, 'Accept': 'application/json' }
-    });
-    if (!verRes.ok) throw new Error('Auth failed: ' + verRes.status);
-    const verJson = await verRes.json();
-    const nextVer = (verJson.version?.number || 1) + 1;
-
-    // Build storage XML with JSON payload
-    const json = JSON.stringify(data);
-    const storageXml = `<p>⚠️ <strong>Do not edit this page manually.</strong> This page is used by the Justin Tracker app to store your data.</p>`
-      + `<ac:structured-macro ac:name="code" ac:schema-version="1" ac:macro-id="f269407b-6342-4741-8ac4-dc9fa55b63b3">`
-      + `<ac:parameter ac:name="language">json</ac:parameter>`
-      + `<ac:plain-text-body><![CDATA[${json}]]></ac:plain-text-body></ac:structured-macro>`;
-
-    const putRes = await fetch(`${CF_BASE}/api/v2/pages/${CF_PAGE_ID}`, {
+    const res = await fetch(`${JB_BASE}/b/${binId}`, {
       method: 'PUT',
-      headers: { 'Authorization': auth, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({
-        id: CF_PAGE_ID,
-        status: 'current',
-        title: 'Justin Tracker - Data Store',
-        body: { representation: 'storage', value: storageXml },
-        version: { number: nextVer, message: 'Auto-save from Justin Tracker' }
-      })
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': key },
+      body: JSON.stringify(data),
     });
-    if (!putRes.ok) throw new Error('Save failed: ' + putRes.status);
+    if (!res.ok) throw new Error('Save failed: ' + res.status);
     syncSetDot('ok', '☁ Synced just now');
-    if (!silent) showToast('Saved to Confluence ✓', true);
+    if (!silent) showToast('Saved to cloud ✓', true);
     document.getElementById('last-saved').textContent = 'just now + cloud';
   } catch(e) {
     syncSetDot('err', '☁ Sync error');
-    if (!silent) showToast('Confluence sync failed: ' + e.message, false);
-    console.error('Confluence push error:', e);
+    if (!silent) showToast('Cloud sync failed: ' + e.message, false);
+    console.error('Sync push error:', e);
   }
 }
 
-async function confluencePull() {
-  const auth = cfAuthHeader();
-  if (!auth) return;
+async function syncPull() {
+  const key = jbKey();
+  const binId = jbBinId();
+  if (!key || !binId) return;
   syncSetDot('busy', '☁ Loading…');
   try {
-    const res = await fetch(`${CF_BASE}/api/v2/pages/${CF_PAGE_ID}?body-format=storage`, {
-      headers: { 'Authorization': auth, 'Accept': 'application/json' }
+    const res = await fetch(`${JB_BASE}/b/${binId}/latest`, {
+      headers: { 'X-Master-Key': key }
     });
     if (!res.ok) throw new Error('Fetch failed: ' + res.status);
     const json = await res.json();
-    const storageXml = json.body?.storage?.value || '';
-    const match = storageXml.match(/<!\[CDATA\[([\s\S]*?)\]\]>/);
-    if (!match) throw new Error('No data found in Confluence page');
-    const parsed = JSON.parse(match[1]);
-    if (!parsed || !parsed.projects) throw new Error('Invalid data format');
+    const parsed = json.record;
+    if (!parsed || !parsed.projects) throw new Error('No tracker data found in cloud');
     data = parsed;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     syncSetDot('ok', '☁ Synced');
-    showToast('Data loaded from Confluence ✓', true);
+    showToast('Data loaded from cloud ✓', true);
     updateBadges();
     renderDashboard();
     closeSyncModal();
   } catch(e) {
     syncSetDot('err', '☁ Sync error');
     showToast('Pull failed: ' + e.message, false);
-    console.error('Confluence pull error:', e);
+    console.error('Sync pull error:', e);
   }
 }
 
-async function confluenceConnect() {
-  const tokenInput = document.getElementById('sync-token-input');
-  const token = tokenInput.value.trim();
-  if (!token) { showSyncMsg('Please paste your API token above.', 'err'); return; }
+async function syncConnect() {
+  const keyInput = document.getElementById('sync-token-input');
+  const key = keyInput.value.trim();
+  if (!key) { showSyncMsg('Please paste your API key above.', 'err'); return; }
   const btn = document.getElementById('btn-connect');
-  btn.disabled = true; btn.textContent = 'Testing…';
-  const auth = 'Basic ' + btoa(CF_EMAIL + ':' + token);
+  btn.disabled = true; btn.textContent = 'Connecting…';
   try {
-    const res = await fetch(`${CF_BASE}/api/v2/pages/${CF_PAGE_ID}`, {
-      headers: { 'Authorization': auth, 'Accept': 'application/json' }
-    });
-    if (res.status === 401) throw new Error('Invalid token — check and try again.');
-    if (res.status === 403) throw new Error('No access to the page. Check token permissions.');
-    if (!res.ok) throw new Error('Connection failed: HTTP ' + res.status);
-    localStorage.setItem(CF_TOKEN_KEY, token);
-    tokenInput.value = '';
-    showSyncMsg('Connected! Data will now sync automatically.', 'ok');
+    let binId = localStorage.getItem(JB_BIN_KEY);
+    if (!binId) {
+      // First time — create a new private bin with current data
+      const createRes = await fetch(`${JB_BASE}/b`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Master-Key': key,
+          'X-Bin-Name': 'Justin Work Tracker',
+          'X-Bin-Private': 'true',
+        },
+        body: JSON.stringify(data),
+      });
+      if (createRes.status === 401) throw new Error('Invalid API key — check and try again.');
+      if (!createRes.ok) throw new Error('Connection failed: HTTP ' + createRes.status);
+      const created = await createRes.json();
+      binId = created.metadata.id;
+      localStorage.setItem(JB_BIN_KEY, binId);
+    } else {
+      // Reconnecting — verify key works
+      const testRes = await fetch(`${JB_BASE}/b/${binId}/latest`, {
+        headers: { 'X-Master-Key': key }
+      });
+      if (testRes.status === 401) throw new Error('Invalid API key — check and try again.');
+      if (!testRes.ok) throw new Error('Connection failed: HTTP ' + testRes.status);
+    }
+    localStorage.setItem(JB_KEY_KEY, key);
+    keyInput.value = '';
+    showSyncMsg('Connected! Your data syncs automatically across all devices.', 'ok');
     document.getElementById('sync-divider-hr').style.display = '';
     document.getElementById('sync-connected-actions').style.display = '';
-    syncSetDot('ok', '☁ Connected');
-    confluencePush(true);
+    syncSetDot('ok', '☁ Synced');
+    syncPush(true);
   } catch(e) {
-    if (e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
-      showSyncMsg('CORS error — open the file via local server (see instructions above).', 'err');
-    } else {
-      showSyncMsg(e.message, 'err');
-    }
+    showSyncMsg(e.message, 'err');
     console.error('Connect error:', e);
   }
-  btn.disabled = false; btn.textContent = 'Connect & Test';
+  btn.disabled = false; btn.textContent = 'Connect & Sync';
 }
 
-function confluenceDisconnect() {
-  localStorage.removeItem(CF_TOKEN_KEY);
-  syncSetDot('off', '☁ Confluence sync');
+function syncDisconnect() {
+  localStorage.removeItem(JB_KEY_KEY);
+  syncSetDot('off', '☁ Cloud sync');
   document.getElementById('sync-connected-actions').style.display = 'none';
   document.getElementById('sync-divider-hr').style.display = 'none';
   showSyncMsg('Disconnected. Your local data is unchanged.', 'info');
@@ -1190,15 +1178,9 @@ function confluenceDisconnect() {
 
 function openSyncModal() {
   document.getElementById('modal-sync').style.display = 'flex';
-  const isFile = window.location.protocol === 'file:';
-  document.getElementById('cors-warning').style.display = isFile ? '' : 'none';
-  const hasToken = !!localStorage.getItem(CF_TOKEN_KEY);
-  document.getElementById('sync-divider-hr').style.display = hasToken ? '' : 'none';
-  document.getElementById('sync-connected-actions').style.display = hasToken ? '' : 'none';
-  // Pre-fill path in cors warning
-  const path = window.location.pathname.split('/').pop() || 'Justin_Tracker.html';
-  const dir = window.location.pathname.split('/').slice(0,-1).join('/') || '~/Desktop';
-  document.getElementById('cors-cmd').textContent = `cd "${dir}" && python3 -m http.server 8765`;
+  const hasKey = !!jbKey();
+  document.getElementById('sync-divider-hr').style.display = hasKey ? '' : 'none';
+  document.getElementById('sync-connected-actions').style.display = hasKey ? '' : 'none';
 }
 
 function closeSyncModal() {
@@ -2091,13 +2073,10 @@ function escHtml(s) {
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); openCapture(); }
     if (e.key === 'Escape') { closeCapture(); closeDetail(); closeEditModal(); closeSyncModal(); }
   });
-  // Token lives in localStorage — enter via ☁ Confluence sync in sidebar
-  // Auto-load from Confluence if connected and not file://
-  if (localStorage.getItem(CF_TOKEN_KEY) && window.location.protocol !== 'file:') {
+  // Auto-load from cloud if connected
+  if (jbKey() && jbBinId()) {
     syncSetDot('busy', '☁ Loading…');
-    confluencePull().catch(() => {});
-  } else if (localStorage.getItem(CF_TOKEN_KEY) && window.location.protocol === 'file:') {
-    syncSetDot('ok', '☁ Connected (open via server to sync)');
+    syncPull().catch(() => { syncSetDot('ok', '☁ Connected'); });
   }
 })();
 </script>
@@ -2105,42 +2084,34 @@ function escHtml(s) {
 <div id="modal-sync" class="sync-modal-overlay" style="display:none" onclick="if(event.target===this)closeSyncModal()">
   <div class="sync-modal">
     <div class="sync-modal-head">
-      <h3>☁ Confluence Sync</h3>
+      <h3>☁ Cloud Sync</h3>
       <span style="cursor:pointer;opacity:0.7;font-size:18px" onclick="closeSyncModal()">✕</span>
     </div>
     <div class="sync-modal-body">
       <div id="sync-status-msg" class="sync-status-msg"></div>
 
-      <!-- CORS warning shown when opened from file:// -->
-      <div id="cors-warning" class="cors-warning" style="display:none">
-        <strong>⚠ Local server required for sync.</strong><br>
-        To enable Confluence sync, open a Terminal and run:<br>
-        <code id="cors-cmd">cd ~/Desktop && python3 -m http.server 8765</code>
-        Then open: <a href="http://localhost:8765/Justin_Tracker.html" target="_blank" style="color:inherit;font-weight:600">http://localhost:8765/Justin_Tracker.html</a>
-      </div>
-
       <div class="sync-section">
-        <p>Connect to your private Confluence space so your tracker data stays in sync across all your devices. Your data is stored on a private page only you can see.</p>
+        <p>Connect to <strong>JSONBin</strong> (free) so your tracker data stays in sync across your PC, tablet, and phone. Your data is stored in a private cloud bin only you can access.</p>
         <div class="sync-field">
-          <label>Confluence API Token</label>
-          <input type="password" id="sync-token-input" placeholder="Paste your Atlassian API token…" autocomplete="off">
-          <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank" class="sync-link">Get your API token at id.atlassian.com →</a>
+          <label>JSONBin API Key</label>
+          <input type="password" id="sync-token-input" placeholder="Paste your JSONBin Master Key…" autocomplete="off">
+          <a href="https://jsonbin.io/app/app/api-keys" target="_blank" class="sync-link">Get your free API key at jsonbin.io →</a>
         </div>
       </div>
 
       <div class="sync-actions">
-        <button class="btn-sync-primary" id="btn-connect" onclick="confluenceConnect()">Connect &amp; Test</button>
+        <button class="btn-sync-primary" id="btn-connect" onclick="syncConnect()">Connect &amp; Sync</button>
         <button class="btn-sync-secondary" onclick="closeSyncModal()">Cancel</button>
       </div>
 
       <hr class="sync-divider" id="sync-divider-hr" style="display:none">
 
       <div id="sync-connected-actions" style="display:none">
-        <p style="font-size:13px;color:var(--gray-mid);margin-bottom:10px">Sync is active. Data auto-saves to Confluence on every save.</p>
+        <p style="font-size:13px;color:var(--gray-mid);margin-bottom:10px">Sync is active. Data saves to the cloud automatically on every save.</p>
         <div class="sync-actions">
-          <button class="btn-sync-primary" onclick="confluencePush()">↑ Push to Confluence now</button>
-          <button class="btn-sync-secondary" onclick="confluencePull()">↓ Pull from Confluence</button>
-          <button class="btn-sync-secondary" onclick="confluenceDisconnect()" style="margin-left:auto;color:#c0392b;border-color:#c0392b">Disconnect</button>
+          <button class="btn-sync-primary" onclick="syncPush()">↑ Push to cloud now</button>
+          <button class="btn-sync-secondary" onclick="syncPull()">↓ Pull from cloud</button>
+          <button class="btn-sync-secondary" onclick="syncDisconnect()" style="margin-left:auto;color:#c0392b;border-color:#c0392b">Disconnect</button>
         </div>
       </div>
     </div>
