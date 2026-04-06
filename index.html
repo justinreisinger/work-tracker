@@ -1,0 +1,2150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Justin's Work Tracker · ReSource Pro</title>
+<style>
+  :root {
+    --blue: #1F5C99;
+    --blue-mid: #2E75B6;
+    --blue-light: #D6E4F0;
+    --blue-xlight: #EBF4FC;
+    --green: #1E7E34;
+    --green-light: #D4EDDA;
+    --amber: #856404;
+    --amber-light: #FFF3CD;
+    --red: #721C24;
+    --red-light: #F8D7DA;
+    --gray-dark: #2D3748;
+    --gray-mid: #718096;
+    --gray-light: #F7FAFC;
+    --gray-border: #E2E8F0;
+    --white: #FFFFFF;
+    --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.05);
+    --radius: 8px;
+    --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: #F0F4F8;
+    color: var(--gray-dark);
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* ── LAYOUT ─────────────────────────────────────────────── */
+  .app { display: flex; min-height: 100vh; }
+
+  /* ── SIDEBAR ─────────────────────────────────────────────── */
+  .sidebar {
+    width: 220px;
+    min-width: 220px;
+    background: var(--blue);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .sidebar-logo {
+    padding: 20px 16px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.15);
+  }
+  .sidebar-logo .title { font-size: 13px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; opacity: 0.9; }
+  .sidebar-logo .subtitle { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+  .sidebar-nav { padding: 12px 0; flex: 1; }
+  .nav-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; opacity: 0.5; padding: 8px 16px 4px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 16px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.15s;
+    border-left: 3px solid transparent;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.1); }
+  .nav-item.active { background: rgba(255,255,255,0.15); border-left-color: white; font-weight: 600; }
+  .nav-item .icon { width: 16px; text-align: center; opacity: 0.8; }
+  .nav-badge {
+    margin-left: auto;
+    background: rgba(255,255,255,0.25);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+  }
+  .nav-badge.alert { background: #E53E3E; }
+  .sidebar-footer {
+    padding: 12px 16px;
+    border-top: 1px solid rgba(255,255,255,0.15);
+    font-size: 11px;
+  }
+  .sidebar-footer-row {
+    display: flex; align-items: center; justify-content: space-between;
+    opacity: 0.6;
+    margin-bottom: 6px;
+  }
+  .sync-status-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .sync-status-row:hover { background: rgba(255,255,255,0.12); }
+  .sync-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .sync-dot.off { background: rgba(255,255,255,0.3); }
+  .sync-dot.ok { background: #68D391; }
+  .sync-dot.err { background: #FC8181; }
+  .sync-dot.busy { background: #F6E05E; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* ── SYNC MODAL ─────────────────────────────────────────── */
+  .sync-modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 200;
+  }
+  .sync-modal {
+    background: white; border-radius: 12px;
+    width: 480px; max-width: 95vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    overflow: hidden;
+  }
+  .sync-modal-head {
+    background: var(--blue); color: white;
+    padding: 18px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .sync-modal-head h3 { font-size: 15px; font-weight: 700; }
+  .sync-modal-body { padding: 24px; }
+  .sync-section { margin-bottom: 20px; }
+  .sync-section p { font-size: 13px; color: var(--gray-mid); line-height: 1.5; margin-bottom: 12px; }
+  .sync-field label { display: block; font-size: 12px; font-weight: 600; color: var(--gray-mid); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .sync-field input {
+    width: 100%; padding: 9px 12px; border: 1px solid var(--gray-border);
+    border-radius: 6px; font-size: 13px; font-family: monospace;
+  }
+  .sync-field input:focus { outline: none; border-color: var(--blue-mid); box-shadow: 0 0 0 3px var(--blue-light); }
+  .sync-link { font-size: 12px; color: var(--blue-mid); text-decoration: none; display: inline-block; margin-top: 6px; }
+  .sync-link:hover { text-decoration: underline; }
+  .sync-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+  .sync-status-msg {
+    font-size: 12px; padding: 8px 12px; border-radius: 6px;
+    margin-bottom: 12px; display: none;
+  }
+  .sync-status-msg.ok { background: #C6F6D5; color: #276749; display: block; }
+  .sync-status-msg.err { background: #FED7D7; color: #742A2A; display: block; }
+  .sync-status-msg.info { background: #EBF8FF; color: #2A4365; display: block; }
+  .sync-divider { border: none; border-top: 1px solid var(--gray-border); margin: 16px 0; }
+  .btn-sync-primary {
+    background: var(--blue-mid); color: white; border: none;
+    padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .btn-sync-primary:hover { background: var(--blue); }
+  .btn-sync-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-sync-secondary {
+    background: white; color: var(--gray-dark); border: 1px solid var(--gray-border);
+    padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .btn-sync-secondary:hover { border-color: var(--blue-mid); color: var(--blue-mid); }
+  .btn-sync-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .cors-warning {
+    background: #FEFCBF; border: 1px solid #F6E05E;
+    border-radius: 6px; padding: 10px 12px; font-size: 12px; line-height: 1.6;
+    color: #744210;
+  }
+  .cors-warning code {
+    background: #FFF; border: 1px solid #E2C000; border-radius: 3px;
+    padding: 1px 5px; font-size: 11px; font-family: monospace;
+    display: block; margin-top: 6px; user-select: all;
+  }
+
+  /* ── MAIN ─────────────────────────────────────────────────── */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar {
+    background: white;
+    border-bottom: 1px solid var(--gray-border);
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: var(--shadow);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .topbar h1 { font-size: 16px; font-weight: 700; color: var(--gray-dark); flex: 1; }
+  .topbar-date { font-size: 12px; color: var(--gray-mid); }
+
+  /* Quick capture button */
+  .btn-capture {
+    background: var(--blue-mid);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.15s;
+  }
+  .btn-capture:hover { background: var(--blue); }
+
+  .content { flex: 1; overflow-y: auto; padding: 24px; }
+
+  /* ── VIEWS (show/hide) ──────────────────────────────────────── */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ── CARDS ─────────────────────────────────────────────────── */
+  .card {
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .card-header {
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid var(--gray-border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .card-title { font-size: 14px; font-weight: 700; flex: 1; }
+  .card-body { padding: 16px 18px; }
+
+  /* ── GRID ──────────────────────────────────────────────────── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+  /* ── STATUS BADGES ──────────────────────────────────────────── */
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 12px;
+    white-space: nowrap;
+  }
+  .badge-green { background: var(--green-light); color: var(--green); }
+  .badge-amber { background: var(--amber-light); color: var(--amber); }
+  .badge-red { background: var(--red-light); color: var(--red); }
+  .badge-blue { background: var(--blue-light); color: var(--blue); }
+  .badge-gray { background: var(--gray-border); color: var(--gray-mid); }
+
+  /* ── DASHBOARD ─────────────────────────────────────────────── */
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  @media (max-width: 900px) { .stat-grid { grid-template-columns: 1fr 1fr; } }
+  .stat-card {
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .stat-card .label { font-size: 11px; color: var(--gray-mid); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-card .value { font-size: 28px; font-weight: 800; color: var(--blue); line-height: 1; }
+  .stat-card .sub { font-size: 11px; color: var(--gray-mid); }
+
+  /* ── TODAY SECTION ──────────────────────────────────────────── */
+  .section-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.8px; color: var(--gray-mid);
+    margin-bottom: 10px;
+  }
+
+  /* ── FOLLOW-UP ITEMS ────────────────────────────────────────── */
+  .followup-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--gray-border);
+  }
+  .followup-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .followup-check {
+    width: 18px; height: 18px;
+    border: 2px solid var(--gray-border);
+    border-radius: 4px;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-top: 1px;
+    transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center;
+    color: white;
+    font-size: 11px;
+  }
+  .followup-check:hover { border-color: var(--blue-mid); }
+  .followup-check.done { background: var(--blue-mid); border-color: var(--blue-mid); }
+  .followup-info { flex: 1; }
+  .followup-text { font-size: 13px; color: var(--gray-dark); line-height: 1.4; }
+  .followup-text.done { text-decoration: line-through; color: var(--gray-mid); }
+  .followup-meta { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+  .followup-date { font-size: 11px; color: var(--gray-mid); }
+  .followup-date.overdue { color: #E53E3E; font-weight: 600; }
+  .followup-date.today-due { color: var(--amber); font-weight: 600; }
+  .followup-actions { display: flex; gap: 6px; }
+
+  /* ── NOTES ──────────────────────────────────────────────────── */
+  .note-item {
+    padding: 10px 12px;
+    background: var(--gray-light);
+    border-radius: 6px;
+    border-left: 3px solid var(--blue-mid);
+    margin-bottom: 8px;
+    position: relative;
+  }
+  .note-item .note-text { font-size: 13px; line-height: 1.5; }
+  .note-item .note-meta { font-size: 11px; color: var(--gray-mid); margin-top: 4px; }
+  .note-item .note-delete {
+    position: absolute; top: 8px; right: 8px;
+    background: none; border: none;
+    color: var(--gray-mid); cursor: pointer;
+    font-size: 13px; opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .note-item:hover .note-delete { opacity: 1; }
+
+  /* ── PROJECTS ───────────────────────────────────────────────── */
+  .project-card {
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--gray-border);
+    overflow: hidden;
+    cursor: pointer;
+    transition: box-shadow 0.15s, border-color 0.15s;
+  }
+  .project-card:hover { box-shadow: var(--shadow-md); border-color: var(--blue-light); }
+  .project-card-header {
+    padding: 14px 16px 12px;
+    display: flex; align-items: flex-start; gap: 10px;
+  }
+  .project-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    background: var(--blue-light);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .project-name { font-size: 13px; font-weight: 700; line-height: 1.3; }
+  .project-client { font-size: 11px; color: var(--gray-mid); margin-top: 2px; }
+  .project-card-body { padding: 0 16px 14px; }
+  .project-stats { display: flex; gap: 16px; padding: 10px 0; border-top: 1px solid var(--gray-border); margin-top: 8px; }
+  .project-stat { font-size: 11px; color: var(--gray-mid); display: flex; align-items: center; gap: 4px; }
+  .project-stat strong { color: var(--gray-dark); }
+
+  /* ── PEOPLE ─────────────────────────────────────────────────── */
+  .person-card {
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--gray-border);
+    overflow: hidden;
+    transition: box-shadow 0.15s;
+  }
+  .person-card:hover { box-shadow: var(--shadow-md); }
+  .person-header { padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
+  .person-avatar {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: var(--blue);
+    color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .person-name { font-size: 14px; font-weight: 700; }
+  .person-role { font-size: 11px; color: var(--gray-mid); margin-top: 2px; }
+  .person-body { padding: 0 16px 14px; }
+  .person-coaching {
+    font-size: 12px;
+    background: var(--blue-xlight);
+    padding: 8px 10px;
+    border-radius: 6px;
+    color: var(--blue);
+    margin-bottom: 10px;
+    border-left: 3px solid var(--blue-mid);
+  }
+  .person-coaching .label { font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+
+  /* ── OUTLOOK INTEGRATION ────────────────────────────────────── */
+  .outlook-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    border: 1px solid;
+    transition: all 0.15s;
+  }
+  .outlook-btn-email { color: #0072C6; border-color: #0072C6; background: white; }
+  .outlook-btn-email:hover { background: #E8F4FF; }
+  .outlook-btn-calendar { color: #107C10; border-color: #107C10; background: white; }
+  .outlook-btn-calendar:hover { background: #E8F5E8; }
+  .outlook-btn-teams { color: #6264A7; border-color: #6264A7; background: white; }
+  .outlook-btn-teams:hover { background: #F0F0F8; }
+
+  /* ── FORMS & INPUTS ─────────────────────────────────────────── */
+  .form-group { margin-bottom: 14px; }
+  .form-label { display: block; font-size: 12px; font-weight: 600; color: var(--gray-mid); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.4px; }
+  .form-input, .form-select, .form-textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--gray-border);
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: var(--font);
+    color: var(--gray-dark);
+    background: white;
+    transition: border-color 0.15s;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus {
+    outline: none;
+    border-color: var(--blue-mid);
+    box-shadow: 0 0 0 3px rgba(46,117,182,0.1);
+  }
+  .form-textarea { min-height: 80px; resize: vertical; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* ── MODAL ──────────────────────────────────────────────────── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    width: 520px;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal-header {
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--gray-border);
+    display: flex; align-items: center;
+  }
+  .modal-header h2 { font-size: 16px; font-weight: 700; flex: 1; }
+  .modal-close { background: none; border: none; font-size: 18px; cursor: pointer; color: var(--gray-mid); padding: 2px 6px; }
+  .modal-body { padding: 20px; }
+  .modal-footer {
+    padding: 14px 20px;
+    border-top: 1px solid var(--gray-border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  .btn { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; }
+  .btn-primary { background: var(--blue-mid); color: white; }
+  .btn-primary:hover { background: var(--blue); }
+  .btn-secondary { background: white; color: var(--gray-dark); border: 1px solid var(--gray-border); }
+  .btn-secondary:hover { background: var(--gray-light); }
+  .btn-danger { background: white; color: #E53E3E; border: 1px solid #E53E3E; }
+  .btn-danger:hover { background: #FFF5F5; }
+
+  /* ── DETAIL PANEL ───────────────────────────────────────────── */
+  .detail-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.3);
+    z-index: 50;
+  }
+  .detail-overlay.open { display: block; }
+  .detail-panel {
+    position: fixed;
+    top: 0; right: -480px;
+    width: 480px;
+    height: 100vh;
+    background: white;
+    box-shadow: -4px 0 20px rgba(0,0,0,0.1);
+    z-index: 51;
+    display: flex;
+    flex-direction: column;
+    transition: right 0.25s ease;
+    overflow: hidden;
+  }
+  .detail-panel.open { right: 0; }
+  .detail-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--gray-border);
+    display: flex; align-items: flex-start; gap: 12px;
+    background: var(--blue-xlight);
+  }
+  .detail-header-info { flex: 1; }
+  .detail-header h2 { font-size: 16px; font-weight: 800; }
+  .detail-header .meta { font-size: 12px; color: var(--gray-mid); margin-top: 3px; }
+  .detail-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--gray-mid); flex-shrink: 0; margin-top: -2px; }
+  .detail-body { flex: 1; overflow-y: auto; padding: 20px; }
+  .detail-section { margin-bottom: 20px; }
+  .detail-section-title {
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--gray-mid);
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--gray-border);
+  }
+  .detail-footer {
+    padding: 14px 20px;
+    border-top: 1px solid var(--gray-border);
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+
+  /* ── EMPTY STATE ────────────────────────────────────────────── */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--gray-mid);
+  }
+  .empty-state .empty-icon { font-size: 36px; margin-bottom: 10px; }
+  .empty-state p { font-size: 13px; }
+
+  /* ── TABS ───────────────────────────────────────────────────── */
+  .tabs { display: flex; gap: 0; border-bottom: 2px solid var(--gray-border); margin-bottom: 16px; }
+  .tab {
+    padding: 8px 16px;
+    font-size: 13px; font-weight: 600;
+    cursor: pointer;
+    color: var(--gray-mid);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.15s;
+  }
+  .tab:hover { color: var(--gray-dark); }
+  .tab.active { color: var(--blue-mid); border-bottom-color: var(--blue-mid); }
+
+  /* ── SEARCH ─────────────────────────────────────────────────── */
+  .search-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--gray-light);
+    border: 1px solid var(--gray-border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    width: 220px;
+  }
+  .search-box input { background: none; border: none; outline: none; font-size: 13px; width: 100%; }
+  .search-box .icon { color: var(--gray-mid); font-size: 13px; }
+
+  /* ── NOTIFICATION TOAST ─────────────────────────────────────── */
+  .toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--gray-dark);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: var(--shadow-md);
+    z-index: 200;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.3s;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { background: #276749; }
+
+  /* ── MISC ───────────────────────────────────────────────────── */
+  .text-muted { color: var(--gray-mid); }
+  .text-small { font-size: 12px; }
+  .mt-2 { margin-top: 8px; }
+  .mt-3 { margin-top: 12px; }
+  .mt-4 { margin-top: 16px; }
+  .flex { display: flex; }
+  .flex-gap { gap: 8px; }
+  .align-center { align-items: center; }
+  .justify-between { justify-content: space-between; }
+  .divider { height: 1px; background: var(--gray-border); margin: 14px 0; }
+  hr { border: none; border-top: 1px solid var(--gray-border); margin: 14px 0; }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--blue-light);
+    color: var(--blue);
+    font-size: 11px; font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 12px;
+  }
+  .priority-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dot-red { background: #E53E3E; }
+  .dot-amber { background: #D69E2E; }
+  .dot-green { background: #38A169; }
+  .dot-gray { background: #A0AEC0; }
+
+  /* Rich textarea for notes */
+  .quick-note-area {
+    width: 100%;
+    min-height: 60px;
+    border: 2px solid var(--gray-border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-family: var(--font);
+    resize: none;
+    transition: border-color 0.15s;
+  }
+  .quick-note-area:focus { outline: none; border-color: var(--blue-mid); }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ── SIDEBAR ─────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="title">Work Tracker</div>
+      <div class="subtitle">Justin Reisinger · RSP</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">Overview</div>
+      <div class="nav-item active" onclick="showView('dashboard')">
+        <span class="icon">⊞</span> Dashboard
+      </div>
+      <div class="nav-item" onclick="showView('followups')">
+        <span class="icon">✓</span> Follow-Ups
+        <span class="nav-badge alert" id="badge-followups">0</span>
+      </div>
+      <div class="nav-label">Work</div>
+      <div class="nav-item" onclick="showView('projects')">
+        <span class="icon">◈</span> Projects
+        <span class="nav-badge" id="badge-projects">7</span>
+      </div>
+      <div class="nav-item" onclick="showView('people')">
+        <span class="icon">◉</span> People
+        <span class="nav-badge" id="badge-people">4</span>
+      </div>
+      <div class="nav-item" onclick="showView('notes')">
+        <span class="icon">✎</span> All Notes
+      </div>
+      <div class="nav-label">Tools</div>
+      <div class="nav-item" onclick="showView('outlook')">
+        <span class="icon">✉</span> Outlook Links
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-footer-row">
+        <span>Last saved: <span id="last-saved">just now</span></span>
+      </div>
+      <div class="sync-status-row" onclick="openSyncModal()" title="Confluence Sync Settings">
+        <div class="sync-dot off" id="sync-dot"></div>
+        <span id="sync-label">☁ Confluence sync</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── MAIN ───────────────────────────────────────────── -->
+  <div class="main">
+    <div class="topbar">
+      <h1 id="page-title">Dashboard</h1>
+      <div class="topbar-date" id="topbar-date"></div>
+      <div class="search-box">
+        <span class="icon">⌕</span>
+        <input type="text" placeholder="Search notes…" id="search-input" oninput="globalSearch(this.value)">
+      </div>
+      <button class="btn-capture" onclick="openCapture()">+ Quick Capture</button>
+    </div>
+
+    <div class="content">
+
+      <!-- ── DASHBOARD VIEW ────────────────────────────── -->
+      <div class="view active" id="view-dashboard">
+        <div class="stat-grid" id="stat-grid"></div>
+        <div class="grid-2">
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">⚡ Today's Follow-Ups</div>
+                <button class="btn btn-primary" style="font-size:11px;padding:4px 10px;" onclick="showView('followups')">View all</button>
+              </div>
+              <div class="card-body" id="today-followups"></div>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">📋 Project Health</div>
+              </div>
+              <div class="card-body" id="project-health"></div>
+            </div>
+          </div>
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">✎ Recent Notes</div>
+              </div>
+              <div class="card-body" id="recent-notes"></div>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">👥 People · Recent Activity</div>
+              </div>
+              <div class="card-body" id="people-activity"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── FOLLOW-UPS VIEW ────────────────────────────── -->
+      <div class="view" id="view-followups">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Follow-Ups</div>
+            <button class="btn btn-primary" style="font-size:11px;padding:5px 12px;" onclick="openCapture('followup')">+ Add Follow-Up</button>
+          </div>
+          <div class="card-body">
+            <div class="tabs">
+              <div class="tab active" onclick="filterFollowups('all', this)">All</div>
+              <div class="tab" onclick="filterFollowups('overdue', this)">Overdue</div>
+              <div class="tab" onclick="filterFollowups('today', this)">Today</div>
+              <div class="tab" onclick="filterFollowups('upcoming', this)">Upcoming</div>
+              <div class="tab" onclick="filterFollowups('done', this)">Completed</div>
+            </div>
+            <div id="followups-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PROJECTS VIEW ──────────────────────────────── -->
+      <div class="view" id="view-projects">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <div></div>
+          <button class="btn btn-primary" onclick="openAddProject()">+ Add Project</button>
+        </div>
+        <div class="grid-3" id="projects-grid"></div>
+      </div>
+
+      <!-- ── PEOPLE VIEW ────────────────────────────────── -->
+      <div class="view" id="view-people">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <div></div>
+          <button class="btn btn-primary" onclick="openAddPerson()">+ Add Person</button>
+        </div>
+        <div id="people-grid"></div>
+      </div>
+
+      <!-- ── NOTES VIEW ─────────────────────────────────── -->
+      <div class="view" id="view-notes">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">All Notes</div>
+          </div>
+          <div class="card-body" id="all-notes-list"></div>
+        </div>
+      </div>
+
+      <!-- ── OUTLOOK VIEW ───────────────────────────────── -->
+      <div class="view" id="view-outlook">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><div class="card-title">✉ Email Quick Links</div></div>
+            <div class="card-body" id="outlook-email-links"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">📅 Schedule Follow-Up</div></div>
+            <div class="card-body">
+              <div class="form-group">
+                <label class="form-label">Person</label>
+                <select class="form-select" id="ol-person"></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Subject / Topic</label>
+                <input type="text" class="form-input" id="ol-subject" placeholder="e.g. CRC automation status check">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Meeting Type</label>
+                <select class="form-select" id="ol-type">
+                  <option>1-1 Catch-Up</option>
+                  <option>Project Sync</option>
+                  <option>Review / Feedback</option>
+                  <option>Client Meeting</option>
+                  <option>Quick Check-In</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Preferred Date</label>
+                  <input type="date" class="form-input" id="ol-date">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Duration</label>
+                  <select class="form-select" id="ol-duration">
+                    <option>30 minutes</option>
+                    <option>45 minutes</option>
+                    <option>1 hour</option>
+                    <option>90 minutes</option>
+                  </select>
+                </div>
+              </div>
+              <button class="btn btn-primary" onclick="buildOutlookLinks()" style="width:100%">Generate Outlook Links</button>
+              <div id="outlook-generated" class="mt-3" style="display:none">
+                <div class="divider"></div>
+                <div id="outlook-links-output"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card mt-4">
+          <div class="card-header"><div class="card-title">📨 Recap Email Builder</div></div>
+          <div class="card-body">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Project</label>
+                <select class="form-select" id="recap-project"></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Recipient</label>
+                <select class="form-select" id="recap-person"></select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Meeting Date</label>
+              <input type="date" class="form-input" id="recap-date">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Key Discussion Points (one per line)</label>
+              <textarea class="form-textarea" id="recap-points" placeholder="- Reviewed automation status&#10;- Discussed approach for PHI handling&#10;- Aligned on timeline"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Action Items (one per line, format: Owner – Action – Due Date)</label>
+              <textarea class="form-textarea" id="recap-actions" placeholder="- Hiranmayee – Complete API doc – Apr 10&#10;- James – Review security requirements – Apr 12"></textarea>
+            </div>
+            <button class="btn btn-primary" onclick="buildRecapEmail()" style="width:100%">Open in Outlook</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ── QUICK CAPTURE MODAL ──────────────────────────── -->
+<div class="modal-overlay" id="capture-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="capture-modal-title">⚡ Quick Capture</h2>
+      <button class="modal-close" onclick="closeCapture()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="tabs" id="capture-tabs">
+        <div class="tab active" onclick="switchCaptureTab('note', this)">Note</div>
+        <div class="tab" onclick="switchCaptureTab('followup', this)">Follow-Up</div>
+        <div class="tab" onclick="switchCaptureTab('action', this)">Action Item</div>
+      </div>
+
+      <!-- Note tab -->
+      <div id="cap-note">
+        <div class="form-group">
+          <label class="form-label">Note / Thought</label>
+          <textarea class="quick-note-area" id="cap-note-text" placeholder="Capture a thought, observation, or context…"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Tag: Project</label>
+            <select class="form-select" id="cap-note-project">
+              <option value="">— none —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tag: Person</label>
+            <select class="form-select" id="cap-note-person">
+              <option value="">— none —</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Follow-up tab -->
+      <div id="cap-followup" style="display:none">
+        <div class="form-group">
+          <label class="form-label">What do you need to follow up on?</label>
+          <textarea class="quick-note-area" id="cap-fu-text" placeholder="e.g. Check with Hiranmayee on CRC doc status…"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Due Date</label>
+            <input type="date" class="form-input" id="cap-fu-date">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Priority</label>
+            <select class="form-select" id="cap-fu-priority">
+              <option value="high">🔴 High</option>
+              <option value="medium" selected>🟡 Medium</option>
+              <option value="low">🟢 Low</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Project</label>
+            <select class="form-select" id="cap-fu-project">
+              <option value="">— none —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Person</label>
+            <select class="form-select" id="cap-fu-person">
+              <option value="">— none —</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action item tab -->
+      <div id="cap-action" style="display:none">
+        <div class="form-group">
+          <label class="form-label">Action Item</label>
+          <textarea class="quick-note-area" id="cap-act-text" placeholder="e.g. Review AI Governance doc section 15…"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Owner</label>
+            <select class="form-select" id="cap-act-owner">
+              <option value="Justin (me)">Justin (me)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Due Date</label>
+            <input type="date" class="form-input" id="cap-act-date">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Project</label>
+          <select class="form-select" id="cap-act-project">
+            <option value="">— none —</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeCapture()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCapture()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── DETAIL PANEL ─────────────────────────────────── -->
+<div class="detail-overlay" id="detail-overlay" onclick="closeDetail()"></div>
+<div class="detail-panel" id="detail-panel">
+  <div class="detail-header">
+    <div id="detail-icon" style="font-size:28px;flex-shrink:0"></div>
+    <div class="detail-header-info">
+      <h2 id="detail-title"></h2>
+      <div class="meta" id="detail-meta"></div>
+    </div>
+    <button class="detail-close" onclick="closeDetail()">×</button>
+  </div>
+  <div class="detail-body" id="detail-body"></div>
+  <div class="detail-footer" id="detail-footer"></div>
+</div>
+
+<!-- ── ADD/EDIT MODALS ─────────────────────────────── -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="edit-modal-title">Edit</h2>
+      <button class="modal-close" onclick="closeEditModal()">×</button>
+    </div>
+    <div class="modal-body" id="edit-modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+      <button class="btn btn-primary" id="edit-modal-save" onclick="">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOAST ────────────────────────────────────────── -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ──────────────────────────────────────────────────────────
+// DATA STORE
+// ──────────────────────────────────────────────────────────
+const STORAGE_KEY = 'justin_tracker_v2';
+
+function defaultData() {
+  const today = new Date();
+  const fmt = d => d.toISOString().slice(0,10);
+  const daysAgo = n => { const d = new Date(today); d.setDate(d.getDate()-n); return fmt(d); };
+  const daysAhead = n => { const d = new Date(today); d.setDate(d.getDate()+n); return fmt(d); };
+
+  return {
+    projects: [
+      { id: 'p1', name: 'CRC Starwind Automation', client: 'CRC / Starwind', status: 'on_track', icon: '⚙️', notes: [], followups: [], lastUpdated: daysAgo(1) },
+      { id: 'p2', name: 'Lockton GPS Automation', client: 'Lockton', status: 'at_risk', icon: '🔗', notes: [], followups: [], lastUpdated: daysAgo(2) },
+      { id: 'p3', name: 'Revenue Management', client: 'Internal / CRC', status: 'on_track', icon: '📊', notes: [], followups: [], lastUpdated: daysAgo(3) },
+      { id: 'p4', name: 'AI Governance', client: 'Internal RSP', status: 'paused', icon: '🤖', notes: [], followups: [], lastUpdated: daysAgo(5) },
+      { id: 'p5', name: 'C3 Carrier Insights', client: 'C3 / Carriers', status: 'on_track', icon: '🏦', notes: [], followups: [], lastUpdated: daysAgo(4) },
+      { id: 'p6', name: 'Loss Runs / PHI Review', client: 'Internal', status: 'needs_decision', icon: '⚠️', notes: [], followups: [], lastUpdated: daysAgo(1) },
+      { id: 'p7', name: 'Compliance Sprint', client: 'Internal', status: 'on_track', icon: '✅', notes: [], followups: [], lastUpdated: daysAgo(6) },
+    ],
+    people: [
+      { id: 'per1', name: 'James Taylor', role: 'Product/Tech Lead', location: 'US', email: 'James_Taylor@resourcepro.com', type: 'team', coachingFocus: '', notes: [], followups: [], lastContact: daysAgo(2) },
+      { id: 'per2', name: 'Luke', role: 'Product Manager', location: 'US', email: 'Luke@resourcepro.com', type: 'team', coachingFocus: '', notes: [], followups: [], lastContact: daysAgo(5) },
+      { id: 'per4', name: 'Iris Hu', role: 'Product · China', location: 'China', email: 'Iris_Hu@resourcepro.com', type: 'team', coachingFocus: '', notes: [], followups: [], lastContact: daysAgo(7) },
+      { id: 'per5', name: 'David Stojanovic', role: 'Engineering · Serbia', location: 'Serbia', email: 'David_Stojanovic@resourcepro.com', type: 'team', coachingFocus: '', notes: [], followups: [], lastContact: daysAgo(10) },
+      { id: 'per3', name: 'OB (Obilesu Saake)', role: 'Collaborator · India', location: 'India', email: 'Obilesu_Saake@resourcepro.com', type: 'collaborator', coachingFocus: '', notes: [], followups: [], lastContact: daysAgo(3) },
+      { id: 'per6', name: 'Hiranmayee Kesari', role: 'Collaborator · India', location: 'India', email: 'Hiranmayee_Kesari@resourcepro.com', type: 'collaborator', coachingFocus: '', notes: [], followups: [], lastContact: daysAgo(4) },
+      { id: 'per7', name: 'Chris Watkins', role: 'Collaborator · Engineering/Security', location: 'US', email: 'cwatkins@resourcepro.com', type: 'collaborator', coachingFocus: '', notes: [], followups: [], lastContact: daysAgo(2) },
+    ],
+    globalNotes: [],
+    globalFollowups: [
+      { id: 'fu1', text: 'Follow up with Hiranmayee on CRC documentation status', dueDate: daysAhead(1), priority: 'high', projectId: 'p1', personId: 'per6', done: false, createdAt: daysAgo(2) },
+      { id: 'fu2', text: 'Review Lockton GPS risk items — what\'s blocking?', dueDate: fmt(today), priority: 'high', projectId: 'p2', personId: 'per1', done: false, createdAt: daysAgo(1) },
+      { id: 'fu3', text: 'Decide on PHI approach for Loss Runs — need Chris\' input', dueDate: fmt(today), priority: 'high', projectId: 'p6', personId: 'per7', done: false, createdAt: daysAgo(3) },
+      { id: 'fu4', text: 'Luke 1-1 prep — review 2025 perf highlights', dueDate: daysAhead(3), priority: 'medium', projectId: '', personId: 'per2', done: false, createdAt: daysAgo(1) },
+      { id: 'fu5', text: 'Update i-Nexus goals with Q2 targets', dueDate: daysAhead(5), priority: 'medium', projectId: '', personId: '', done: false, createdAt: daysAgo(4) },
+    ],
+    lastSaved: new Date().toISOString(),
+  };
+}
+
+let data = loadData();
+
+function loadData() {
+  try {
+    const s = localStorage.getItem(STORAGE_KEY);
+    if (s) return JSON.parse(s);
+  } catch(e) {}
+  return defaultData();
+}
+
+function saveData() {
+  data.lastSaved = new Date().toISOString();
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    document.getElementById('last-saved').textContent = 'just now';
+  } catch(e) {}
+  // Auto-push to Confluence if connected
+  if (localStorage.getItem('cf_token')) {
+    clearTimeout(window._cfSaveTimer);
+    window._cfSaveTimer = setTimeout(() => confluencePush(true), 2000);
+  }
+}
+
+// ──────────────────────────────────────────────────────────
+// CONFLUENCE SYNC
+// ──────────────────────────────────────────────────────────
+const CF_BASE    = 'https://rspproduct.atlassian.net/wiki';
+const CF_PAGE_ID = '1464991845';
+const CF_EMAIL   = 'justin_reisinger@resourcepro.com';
+const CF_TOKEN_KEY = 'cf_token';
+const CF_VERSION_KEY = 'cf_page_version';
+
+function cfAuthHeader() {
+  const token = localStorage.getItem(CF_TOKEN_KEY);
+  if (!token) return null;
+  return 'Basic ' + btoa(CF_EMAIL + ':' + token);
+}
+
+function syncSetDot(state, label) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  dot.className = 'sync-dot ' + state;
+  lbl.textContent = label;
+}
+
+async function confluencePush(silent) {
+  const auth = cfAuthHeader();
+  if (!auth) return;
+  syncSetDot('busy', '☁ Syncing…');
+  try {
+    // Get current version first
+    const verRes = await fetch(`${CF_BASE}/api/v2/pages/${CF_PAGE_ID}`, {
+      headers: { 'Authorization': auth, 'Accept': 'application/json' }
+    });
+    if (!verRes.ok) throw new Error('Auth failed: ' + verRes.status);
+    const verJson = await verRes.json();
+    const nextVer = (verJson.version?.number || 1) + 1;
+
+    // Build storage XML with JSON payload
+    const json = JSON.stringify(data);
+    const storageXml = `<p>⚠️ <strong>Do not edit this page manually.</strong> This page is used by the Justin Tracker app to store your data.</p>`
+      + `<ac:structured-macro ac:name="code" ac:schema-version="1" ac:macro-id="f269407b-6342-4741-8ac4-dc9fa55b63b3">`
+      + `<ac:parameter ac:name="language">json</ac:parameter>`
+      + `<ac:plain-text-body><![CDATA[${json}]]></ac:plain-text-body></ac:structured-macro>`;
+
+    const putRes = await fetch(`${CF_BASE}/api/v2/pages/${CF_PAGE_ID}`, {
+      method: 'PUT',
+      headers: { 'Authorization': auth, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({
+        id: CF_PAGE_ID,
+        status: 'current',
+        title: 'Justin Tracker - Data Store',
+        body: { representation: 'storage', value: storageXml },
+        version: { number: nextVer, message: 'Auto-save from Justin Tracker' }
+      })
+    });
+    if (!putRes.ok) throw new Error('Save failed: ' + putRes.status);
+    syncSetDot('ok', '☁ Synced just now');
+    if (!silent) showToast('Saved to Confluence ✓', true);
+    document.getElementById('last-saved').textContent = 'just now + cloud';
+  } catch(e) {
+    syncSetDot('err', '☁ Sync error');
+    if (!silent) showToast('Confluence sync failed: ' + e.message, false);
+    console.error('Confluence push error:', e);
+  }
+}
+
+async function confluencePull() {
+  const auth = cfAuthHeader();
+  if (!auth) return;
+  syncSetDot('busy', '☁ Loading…');
+  try {
+    const res = await fetch(`${CF_BASE}/api/v2/pages/${CF_PAGE_ID}?body-format=storage`, {
+      headers: { 'Authorization': auth, 'Accept': 'application/json' }
+    });
+    if (!res.ok) throw new Error('Fetch failed: ' + res.status);
+    const json = await res.json();
+    const storageXml = json.body?.storage?.value || '';
+    const match = storageXml.match(/<!\[CDATA\[([\s\S]*?)\]\]>/);
+    if (!match) throw new Error('No data found in Confluence page');
+    const parsed = JSON.parse(match[1]);
+    if (!parsed || !parsed.projects) throw new Error('Invalid data format');
+    data = parsed;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    syncSetDot('ok', '☁ Synced');
+    showToast('Data loaded from Confluence ✓', true);
+    updateBadges();
+    renderDashboard();
+    closeSyncModal();
+  } catch(e) {
+    syncSetDot('err', '☁ Sync error');
+    showToast('Pull failed: ' + e.message, false);
+    console.error('Confluence pull error:', e);
+  }
+}
+
+async function confluenceConnect() {
+  const tokenInput = document.getElementById('sync-token-input');
+  const token = tokenInput.value.trim();
+  if (!token) { showSyncMsg('Please paste your API token above.', 'err'); return; }
+  const btn = document.getElementById('btn-connect');
+  btn.disabled = true; btn.textContent = 'Testing…';
+  const auth = 'Basic ' + btoa(CF_EMAIL + ':' + token);
+  try {
+    const res = await fetch(`${CF_BASE}/api/v2/pages/${CF_PAGE_ID}`, {
+      headers: { 'Authorization': auth, 'Accept': 'application/json' }
+    });
+    if (res.status === 401) throw new Error('Invalid token — check and try again.');
+    if (res.status === 403) throw new Error('No access to the page. Check token permissions.');
+    if (!res.ok) throw new Error('Connection failed: HTTP ' + res.status);
+    localStorage.setItem(CF_TOKEN_KEY, token);
+    tokenInput.value = '';
+    showSyncMsg('Connected! Data will now sync automatically.', 'ok');
+    document.getElementById('sync-divider-hr').style.display = '';
+    document.getElementById('sync-connected-actions').style.display = '';
+    syncSetDot('ok', '☁ Connected');
+    confluencePush(true);
+  } catch(e) {
+    if (e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
+      showSyncMsg('CORS error — open the file via local server (see instructions above).', 'err');
+    } else {
+      showSyncMsg(e.message, 'err');
+    }
+    console.error('Connect error:', e);
+  }
+  btn.disabled = false; btn.textContent = 'Connect & Test';
+}
+
+function confluenceDisconnect() {
+  localStorage.removeItem(CF_TOKEN_KEY);
+  syncSetDot('off', '☁ Confluence sync');
+  document.getElementById('sync-connected-actions').style.display = 'none';
+  document.getElementById('sync-divider-hr').style.display = 'none';
+  showSyncMsg('Disconnected. Your local data is unchanged.', 'info');
+}
+
+function openSyncModal() {
+  document.getElementById('modal-sync').style.display = 'flex';
+  const isFile = window.location.protocol === 'file:';
+  document.getElementById('cors-warning').style.display = isFile ? '' : 'none';
+  const hasToken = !!localStorage.getItem(CF_TOKEN_KEY);
+  document.getElementById('sync-divider-hr').style.display = hasToken ? '' : 'none';
+  document.getElementById('sync-connected-actions').style.display = hasToken ? '' : 'none';
+  // Pre-fill path in cors warning
+  const path = window.location.pathname.split('/').pop() || 'Justin_Tracker.html';
+  const dir = window.location.pathname.split('/').slice(0,-1).join('/') || '~/Desktop';
+  document.getElementById('cors-cmd').textContent = `cd "${dir}" && python3 -m http.server 8765`;
+}
+
+function closeSyncModal() {
+  document.getElementById('modal-sync').style.display = 'none';
+  document.getElementById('sync-status-msg').className = 'sync-status-msg';
+  document.getElementById('sync-status-msg').textContent = '';
+}
+
+function showSyncMsg(msg, type) {
+  const el = document.getElementById('sync-status-msg');
+  el.textContent = msg;
+  el.className = 'sync-status-msg ' + type;
+}
+
+function uid() { return 'id_' + Math.random().toString(36).slice(2,10) + Date.now(); }
+
+// ──────────────────────────────────────────────────────────
+// NAVIGATION
+// ──────────────────────────────────────────────────────────
+const VIEW_TITLES = {
+  dashboard: 'Dashboard',
+  followups: 'Follow-Ups',
+  projects: 'Projects',
+  people: 'People',
+  notes: 'All Notes',
+  outlook: 'Outlook Links'
+};
+
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.textContent.trim().toLowerCase().startsWith(name === 'followups' ? 'follow' : name === 'outlook' ? 'outlook' : name)) {
+      n.classList.add('active');
+    }
+  });
+  document.getElementById('page-title').textContent = VIEW_TITLES[name] || name;
+  renderView(name);
+}
+
+function renderView(name) {
+  if (name === 'dashboard') renderDashboard();
+  else if (name === 'followups') renderFollowups('all');
+  else if (name === 'projects') renderProjects();
+  else if (name === 'people') renderPeople();
+  else if (name === 'notes') renderAllNotes();
+  else if (name === 'outlook') renderOutlook();
+}
+
+// ──────────────────────────────────────────────────────────
+// HELPERS
+// ──────────────────────────────────────────────────────────
+function fmtDate(d) {
+  if (!d) return '';
+  const dt = new Date(d + 'T00:00:00');
+  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function isOverdue(d) {
+  if (!d) return false;
+  const today = new Date(); today.setHours(0,0,0,0);
+  return new Date(d + 'T00:00:00') < today;
+}
+
+function isToday(d) {
+  if (!d) return false;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dt = new Date(d + 'T00:00:00');
+  return dt.getTime() === today.getTime();
+}
+
+function getProject(id) { return data.projects.find(p => p.id === id); }
+function getPerson(id) { return data.people.find(p => p.id === id); }
+
+function statusBadge(s) {
+  const map = {
+    on_track: ['badge-green', '✓ On Track'],
+    at_risk: ['badge-amber', '⚠ At Risk'],
+    paused: ['badge-gray', '⏸ Paused'],
+    needs_decision: ['badge-red', '🔴 Needs Decision'],
+    completed: ['badge-blue', '✓ Complete'],
+  };
+  const [cls, label] = map[s] || ['badge-gray', s];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+function priorityDot(p) {
+  if (p === 'high') return '<span class="priority-dot dot-red"></span>';
+  if (p === 'medium') return '<span class="priority-dot dot-amber"></span>';
+  return '<span class="priority-dot dot-green"></span>';
+}
+
+function initials(name) {
+  return name.split(/\s+/).slice(0,2).map(w => w[0].toUpperCase()).join('');
+}
+
+function allFollowups() {
+  const all = [...data.globalFollowups];
+  data.projects.forEach(p => all.push(...(p.followups||[])));
+  data.people.forEach(p => all.push(...(p.followups||[])));
+  return all.sort((a,b) => (a.dueDate||'').localeCompare(b.dueDate||''));
+}
+
+function deleteFollowupById(id) {
+  data.globalFollowups = data.globalFollowups.filter(f => f.id !== id);
+  data.projects.forEach(p => { p.followups = (p.followups||[]).filter(f => f.id !== id); });
+  data.people.forEach(p => { p.followups = (p.followups||[]).filter(f => f.id !== id); });
+}
+
+function toggleFollowup(id) {
+  const all = allFollowups();
+  const fu = all.find(f => f.id === id);
+  if (fu) fu.done = !fu.done;
+  data.projects.forEach(p => {
+    (p.followups||[]).forEach(f => { if (f.id === id) f.done = !f.done; });
+  });
+  data.people.forEach(p => {
+    (p.followups||[]).forEach(f => { if (f.id === id) f.done = !f.done; });
+  });
+  data.globalFollowups.forEach(f => { if (f.id === id) f.done = !f.done; });
+  saveData();
+  updateBadges();
+}
+
+function allNotes() {
+  const all = [...(data.globalNotes||[])];
+  data.projects.forEach(p => (p.notes||[]).forEach(n => all.push({...n, projectId: p.id})));
+  data.people.forEach(p => (p.notes||[]).forEach(n => all.push({...n, personId: p.id})));
+  return all.sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''));
+}
+
+// ──────────────────────────────────────────────────────────
+// BADGES
+// ──────────────────────────────────────────────────────────
+function updateBadges() {
+  const open = allFollowups().filter(f => !f.done && (isOverdue(f.dueDate) || isToday(f.dueDate)));
+  const badge = document.getElementById('badge-followups');
+  if (badge) {
+    badge.textContent = open.length;
+    badge.classList.toggle('alert', open.length > 0);
+  }
+}
+
+// ──────────────────────────────────────────────────────────
+// DASHBOARD
+// ──────────────────────────────────────────────────────────
+function renderDashboard() {
+  // Stats
+  const fus = allFollowups();
+  const overdueCount = fus.filter(f => !f.done && isOverdue(f.dueDate)).length;
+  const todayCount = fus.filter(f => !f.done && isToday(f.dueDate)).length;
+  const notesCount = allNotes().length;
+  document.getElementById('stat-grid').innerHTML = `
+    <div class="stat-card"><div class="label">Active Projects</div><div class="value">${data.projects.length}</div><div class="sub">${data.projects.filter(p=>p.status==='at_risk'||p.status==='needs_decision').length} need attention</div></div>
+    <div class="stat-card"><div class="label">Due Today</div><div class="value" style="color:#E53E3E">${todayCount + overdueCount}</div><div class="sub">${overdueCount} overdue</div></div>
+    <div class="stat-card"><div class="label">Team Members</div><div class="value">${data.people.length}</div><div class="sub">across 4 countries</div></div>
+    <div class="stat-card"><div class="label">Notes Captured</div><div class="value">${notesCount}</div><div class="sub">tap + Quick Capture to add</div></div>
+  `;
+
+  // Today's follow-ups
+  const todayFUs = fus.filter(f => !f.done && (isToday(f.dueDate) || isOverdue(f.dueDate))).slice(0,5);
+  const todayEl = document.getElementById('today-followups');
+  if (todayFUs.length === 0) {
+    todayEl.innerHTML = '<div class="empty-state"><div class="empty-icon">✓</div><p>No follow-ups due today</p></div>';
+  } else {
+    todayEl.innerHTML = todayFUs.map(f => renderFollowupItem(f)).join('');
+  }
+
+  // Project health
+  document.getElementById('project-health').innerHTML = data.projects.map(p => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray-border);">
+      <span style="font-size:18px">${p.icon}</span>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600;cursor:pointer;" onclick="openProjectDetail('${p.id}')">${p.name}</div>
+        <div style="font-size:11px;color:var(--gray-mid)">${p.client}</div>
+      </div>
+      ${statusBadge(p.status)}
+    </div>
+  `).join('').replace(/<div style="display:flex[^>]*>([^<]|<(?!\/div>))*<\/div>\s*$/,'');
+
+  // Recent notes
+  const rn = allNotes().slice(0,4);
+  document.getElementById('recent-notes').innerHTML = rn.length ? rn.map(n => `
+    <div class="note-item">
+      <div class="note-text">${escHtml(n.text)}</div>
+      <div class="note-meta">${n.projectId ? `<span class="chip">${getProject(n.projectId)?.name || n.projectId}</span>` : ''}${n.personId ? `<span class="chip">${getPerson(n.personId)?.name || n.personId}</span>` : ''} <span>${fmtDate(n.createdAt?.slice(0,10))}</span></div>
+    </div>
+  `).join('') : '<div class="empty-state"><div class="empty-icon">📝</div><p>No notes yet — use Quick Capture</p></div>';
+
+  // People activity — show direct reports first, sorted by last contact
+  const team = data.people.filter(p => p.type === 'team' || !p.type).sort((a,b) => (b.lastContact||'').localeCompare(a.lastContact||''));
+  document.getElementById('people-activity').innerHTML = team.map(p => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray-border);cursor:pointer" onclick="openPersonDetail('${p.id}')">
+      <div class="person-avatar" style="width:32px;height:32px;font-size:12px">${initials(p.name)}</div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600">${p.name}</div>
+        <div style="font-size:11px;color:var(--gray-mid)">${p.role}</div>
+      </div>
+      <div style="font-size:11px;color:var(--gray-mid)">${p.lastContact ? fmtDate(p.lastContact) : '—'}</div>
+    </div>
+  `).join('');
+}
+
+// ──────────────────────────────────────────────────────────
+// FOLLOW-UPS
+// ──────────────────────────────────────────────────────────
+let currentFuFilter = 'all';
+function filterFollowups(filter, el) {
+  currentFuFilter = filter;
+  document.querySelectorAll('#view-followups .tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderFollowups(filter);
+}
+
+function renderFollowups(filter) {
+  let fus = allFollowups();
+  if (filter === 'overdue') fus = fus.filter(f => !f.done && isOverdue(f.dueDate));
+  else if (filter === 'today') fus = fus.filter(f => !f.done && isToday(f.dueDate));
+  else if (filter === 'upcoming') fus = fus.filter(f => !f.done && !isOverdue(f.dueDate) && !isToday(f.dueDate));
+  else if (filter === 'done') fus = fus.filter(f => f.done);
+  else fus = fus.filter(f => !f.done);
+
+  const el = document.getElementById('followups-list');
+  if (fus.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">✓</div><p>Nothing here</p></div>';
+    return;
+  }
+  el.innerHTML = fus.map(f => renderFollowupItem(f)).join('');
+}
+
+function renderFollowupItem(f) {
+  const proj = f.projectId ? getProject(f.projectId) : null;
+  const person = f.personId ? getPerson(f.personId) : null;
+  const dueClass = isOverdue(f.dueDate) && !f.done ? 'followup-date overdue' : isToday(f.dueDate) && !f.done ? 'followup-date today-due' : 'followup-date';
+  const dueLabel = isOverdue(f.dueDate) && !f.done ? '⚠ Overdue: ' : isToday(f.dueDate) && !f.done ? '● Due today' : 'Due: ';
+  return `
+    <div class="followup-item" id="fuitem-${f.id}">
+      <div class="followup-check ${f.done?'done':''}" onclick="toggleFollowupUI('${f.id}')">${f.done?'✓':''}</div>
+      <div class="followup-info">
+        <div class="followup-text ${f.done?'done':''}">${priorityDot(f.priority)} ${escHtml(f.text)}</div>
+        <div class="followup-meta">
+          ${f.dueDate ? `<span class="${dueClass}">${dueLabel}${fmtDate(f.dueDate)}</span>` : ''}
+          ${proj ? `<span class="chip">${proj.icon} ${proj.name}</span>` : ''}
+          ${person ? `<span class="chip">👤 ${person.name}</span>` : ''}
+        </div>
+      </div>
+      <div class="followup-actions">
+        <button onclick="deleteFollowupUI('${f.id}')" style="background:none;border:none;cursor:pointer;color:var(--gray-mid);font-size:13px;padding:2px 5px;" title="Delete">🗑</button>
+      </div>
+    </div>
+  `;
+}
+
+function toggleFollowupUI(id) {
+  toggleFollowup(id);
+  renderView('followups');
+  renderDashboardIfActive();
+}
+
+function deleteFollowupUI(id) {
+  deleteFollowupById(id);
+  saveData();
+  renderView('followups');
+  updateBadges();
+}
+
+function renderDashboardIfActive() {
+  if (document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
+  updateBadges();
+}
+
+// ──────────────────────────────────────────────────────────
+// PROJECTS
+// ──────────────────────────────────────────────────────────
+function renderProjects() {
+  document.getElementById('projects-grid').innerHTML = data.projects.map(p => `
+    <div class="project-card" onclick="openProjectDetail('${p.id}')">
+      <div class="project-card-header">
+        <div class="project-icon">${p.icon}</div>
+        <div style="flex:1">
+          <div class="project-name">${p.name}</div>
+          <div class="project-client">${p.client}</div>
+        </div>
+      </div>
+      <div class="project-card-body">
+        ${statusBadge(p.status)}
+        <div class="project-stats">
+          <div class="project-stat">✎ <strong>${(p.notes||[]).length}</strong> notes</div>
+          <div class="project-stat">✓ <strong>${(p.followups||[]).filter(f=>!f.done).length}</strong> open tasks</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openProjectDetail(id) {
+  const p = getProject(id);
+  if (!p) return;
+  document.getElementById('detail-icon').textContent = p.icon;
+  document.getElementById('detail-title').textContent = p.name;
+  document.getElementById('detail-meta').innerHTML = `${p.client} &nbsp;·&nbsp; ${statusBadge(p.status)}`;
+
+  const fuList = (p.followups||[]).filter(f=>!f.done);
+  const doneList = (p.followups||[]).filter(f=>f.done);
+  const notesList = (p.notes||[]);
+
+  document.getElementById('detail-body').innerHTML = `
+    <div class="detail-section">
+      <div class="detail-section-title">Status</div>
+      <select class="form-select" onchange="updateProjectStatus('${id}', this.value)" style="max-width:200px">
+        ${['on_track','at_risk','paused','needs_decision','completed'].map(s => `<option value="${s}" ${p.status===s?'selected':''}>${s.replace(/_/g,' ')}</option>`).join('')}
+      </select>
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-title">Quick Note</div>
+      <textarea class="quick-note-area" id="proj-note-input" placeholder="Add a note for this project…"></textarea>
+      <button class="btn btn-primary mt-2" style="font-size:12px;padding:5px 12px" onclick="addProjectNote('${id}')">Add Note</button>
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-title">Notes (${notesList.length})</div>
+      ${notesList.length ? notesList.slice().reverse().map(n => `
+        <div class="note-item">
+          <div class="note-text">${escHtml(n.text)}</div>
+          <div class="note-meta">${fmtDate(n.createdAt?.slice(0,10))}</div>
+          <button class="note-delete" onclick="deleteProjectNote('${id}','${n.id}')">🗑</button>
+        </div>`).join('') : '<p class="text-muted text-small">No notes yet</p>'}
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-title">Follow-Ups (${fuList.length} open)</div>
+      <div style="margin-bottom:10px">
+        <textarea class="quick-note-area" id="proj-fu-input" placeholder="New follow-up for this project…" style="min-height:50px"></textarea>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <input type="date" class="form-input" id="proj-fu-date" style="flex:1">
+          <button class="btn btn-primary" style="font-size:12px;padding:5px 12px;white-space:nowrap" onclick="addProjectFollowup('${id}')">Add</button>
+        </div>
+      </div>
+      ${fuList.map(f => renderFollowupItem(f)).join('') || '<p class="text-muted text-small">No open follow-ups</p>'}
+    </div>
+  `;
+
+  document.getElementById('detail-footer').innerHTML = `
+    <a href="mailto:${p.client ? '' : ''}" class="outlook-btn outlook-btn-email" onclick="openOutlookEmail('${id}', ''); return false;">✉ Email about project</a>
+    <button class="btn btn-danger" style="font-size:11px;padding:5px 10px" onclick="if(confirm('Delete project?')){deleteProject('${id}')}">Delete</button>
+  `;
+
+  openDetail();
+}
+
+function updateProjectStatus(id, status) {
+  const p = getProject(id);
+  if (p) { p.status = status; p.lastUpdated = new Date().toISOString().slice(0,10); saveData(); showToast('Status updated'); }
+}
+
+function addProjectNote(id) {
+  const p = getProject(id);
+  const text = document.getElementById('proj-note-input').value.trim();
+  if (!p || !text) return;
+  if (!p.notes) p.notes = [];
+  p.notes.push({ id: uid(), text, createdAt: new Date().toISOString() });
+  saveData();
+  document.getElementById('proj-note-input').value = '';
+  openProjectDetail(id);
+  showToast('Note saved ✓');
+}
+
+function deleteProjectNote(projId, noteId) {
+  const p = getProject(projId);
+  if (p) { p.notes = (p.notes||[]).filter(n => n.id !== noteId); saveData(); openProjectDetail(projId); }
+}
+
+function addProjectFollowup(id) {
+  const p = getProject(id);
+  const text = document.getElementById('proj-fu-input').value.trim();
+  const date = document.getElementById('proj-fu-date').value;
+  if (!p || !text) return;
+  if (!p.followups) p.followups = [];
+  p.followups.push({ id: uid(), text, dueDate: date, priority: 'medium', projectId: id, done: false, createdAt: new Date().toISOString() });
+  saveData();
+  document.getElementById('proj-fu-input').value = '';
+  document.getElementById('proj-fu-date').value = '';
+  openProjectDetail(id);
+  updateBadges();
+  showToast('Follow-up added ✓');
+}
+
+function deleteProject(id) {
+  data.projects = data.projects.filter(p => p.id !== id);
+  saveData();
+  closeDetail();
+  renderProjects();
+  showToast('Project deleted');
+}
+
+// ──────────────────────────────────────────────────────────
+// PEOPLE
+// ──────────────────────────────────────────────────────────
+function renderPeopleCards(list) {
+  return list.map(p => `
+    <div class="person-card" onclick="openPersonDetail('${p.id}')">
+      <div class="person-header">
+        <div class="person-avatar">${initials(p.name)}</div>
+        <div>
+          <div class="person-name">${p.name}</div>
+          <div class="person-role">${p.role}</div>
+        </div>
+      </div>
+      <div class="person-body">
+        ${p.coachingFocus ? `<div class="person-coaching"><div class="label">Coaching Focus</div>${escHtml(p.coachingFocus)}</div>` : ''}
+        <div style="display:flex;gap:16px;font-size:12px;color:var(--gray-mid)">
+          <span>✎ ${(p.notes||[]).length} notes</span>
+          <span>✓ ${(p.followups||[]).filter(f=>!f.done).length} open</span>
+          <span>${p.lastContact ? fmtDate(p.lastContact) : 'No contact'}</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderPeople() {
+  const team = data.people.filter(p => p.type === 'team' || !p.type);
+  const collabs = data.people.filter(p => p.type === 'collaborator');
+  const container = document.getElementById('people-grid');
+  container.innerHTML = '';
+  container.style.display = 'block';
+
+  // Direct reports section
+  container.innerHTML += `
+    <div style="margin-bottom:8px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--gray-mid);margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--blue-light);">
+        👥 Direct Reports (${team.length})
+      </div>
+      <div class="grid-3" style="margin-bottom:0">${renderPeopleCards(team)}</div>
+    </div>
+  `;
+
+  // Collaborators section
+  if (collabs.length) {
+    container.innerHTML += `
+      <div style="margin-top:28px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--gray-mid);margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--gray-border);">
+          🤝 Collaborators (${collabs.length})
+        </div>
+        <div class="grid-3" style="margin-bottom:0">${renderPeopleCards(collabs)}</div>
+      </div>
+    `;
+  }
+}
+
+function openPersonDetail(id) {
+  const p = getPerson(id);
+  if (!p) return;
+  document.getElementById('detail-icon').textContent = initials(p.name);
+  document.getElementById('detail-icon').style.cssText = 'width:44px;height:44px;background:var(--blue);color:white;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:15px;font-weight:700;flex-shrink:0';
+  document.getElementById('detail-title').textContent = p.name;
+  document.getElementById('detail-meta').textContent = p.role + ' · ' + p.location;
+
+  const fuList = (p.followups||[]).filter(f=>!f.done);
+
+  document.getElementById('detail-body').innerHTML = `
+    <div class="detail-section">
+      <div class="detail-section-title">Coaching Focus</div>
+      <textarea class="quick-note-area" id="coaching-input" style="min-height:50px" placeholder="What are you coaching this person toward?">${escHtml(p.coachingFocus||'')}</textarea>
+      <button class="btn btn-primary mt-2" style="font-size:12px;padding:5px 12px" onclick="saveCoachingFocus('${id}')">Save</button>
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-title">Quick Note</div>
+      <textarea class="quick-note-area" id="person-note-input" placeholder="Note from a conversation, observation, or coaching moment…"></textarea>
+      <button class="btn btn-primary mt-2" style="font-size:12px;padding:5px 12px" onclick="addPersonNote('${id}')">Add Note</button>
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-title">Notes (${(p.notes||[]).length})</div>
+      ${(p.notes||[]).length ? (p.notes||[]).slice().reverse().map(n => `
+        <div class="note-item">
+          <div class="note-text">${escHtml(n.text)}</div>
+          <div class="note-meta">${fmtDate(n.createdAt?.slice(0,10))}</div>
+          <button class="note-delete" onclick="deletePersonNote('${id}','${n.id}')">🗑</button>
+        </div>`).join('') : '<p class="text-muted text-small">No notes yet</p>'}
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-title">Follow-Ups (${fuList.length} open)</div>
+      <div style="margin-bottom:10px">
+        <textarea class="quick-note-area" id="person-fu-input" placeholder="New follow-up…" style="min-height:50px"></textarea>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <input type="date" class="form-input" id="person-fu-date" style="flex:1">
+          <button class="btn btn-primary" style="font-size:12px;padding:5px 12px;white-space:nowrap" onclick="addPersonFollowup('${id}')">Add</button>
+        </div>
+      </div>
+      ${fuList.map(f => renderFollowupItem(f)).join('') || '<p class="text-muted text-small">No open follow-ups</p>'}
+    </div>
+  `;
+
+  document.getElementById('detail-footer').innerHTML = `
+    <a href="mailto:${p.email}" class="outlook-btn outlook-btn-email">✉ Email ${p.name.split(' ')[0]}</a>
+    <a href="https://teams.microsoft.com/l/chat/0/0?users=${p.email}" target="_blank" class="outlook-btn outlook-btn-teams">💬 Teams Chat</a>
+    <button class="btn btn-secondary" style="font-size:11px;padding:5px 10px;margin-left:auto" onclick="openEditPerson('${id}')">Edit</button>
+  `;
+
+  openDetail();
+}
+
+function saveCoachingFocus(id) {
+  const p = getPerson(id);
+  if (p) {
+    p.coachingFocus = document.getElementById('coaching-input').value.trim();
+    saveData();
+    showToast('Coaching focus saved ✓');
+  }
+}
+
+function addPersonNote(id) {
+  const p = getPerson(id);
+  const text = document.getElementById('person-note-input').value.trim();
+  if (!p || !text) return;
+  if (!p.notes) p.notes = [];
+  p.notes.push({ id: uid(), text, createdAt: new Date().toISOString() });
+  p.lastContact = new Date().toISOString().slice(0,10);
+  saveData();
+  document.getElementById('person-note-input').value = '';
+  openPersonDetail(id);
+  showToast('Note saved ✓');
+}
+
+function deletePersonNote(personId, noteId) {
+  const p = getPerson(personId);
+  if (p) { p.notes = (p.notes||[]).filter(n => n.id !== noteId); saveData(); openPersonDetail(personId); }
+}
+
+function addPersonFollowup(id) {
+  const p = getPerson(id);
+  const text = document.getElementById('person-fu-input').value.trim();
+  const date = document.getElementById('person-fu-date').value;
+  if (!p || !text) return;
+  if (!p.followups) p.followups = [];
+  p.followups.push({ id: uid(), text, dueDate: date, priority: 'medium', personId: id, done: false, createdAt: new Date().toISOString() });
+  saveData();
+  document.getElementById('person-fu-input').value = '';
+  openPersonDetail(id);
+  updateBadges();
+  showToast('Follow-up added ✓');
+}
+
+// ──────────────────────────────────────────────────────────
+// ALL NOTES
+// ──────────────────────────────────────────────────────────
+function renderAllNotes() {
+  const notes = allNotes();
+  document.getElementById('all-notes-list').innerHTML = notes.length ? notes.map(n => `
+    <div class="note-item">
+      <div class="note-text">${escHtml(n.text)}</div>
+      <div class="note-meta">
+        ${n.projectId ? `<span class="chip">${getProject(n.projectId)?.icon || ''} ${getProject(n.projectId)?.name || n.projectId}</span>` : ''}
+        ${n.personId ? `<span class="chip">👤 ${getPerson(n.personId)?.name || n.personId}</span>` : ''}
+        ${fmtDate(n.createdAt?.slice(0,10))}
+      </div>
+    </div>
+  `).join('') : '<div class="empty-state"><div class="empty-icon">✎</div><p>No notes yet. Use Quick Capture to add one.</p></div>';
+}
+
+// ──────────────────────────────────────────────────────────
+// QUICK CAPTURE
+// ──────────────────────────────────────────────────────────
+let captureTab = 'note';
+
+function openCapture(tab = 'note') {
+  populateCaptureSelects();
+  switchCaptureTab(tab, null);
+  document.getElementById('capture-modal').classList.add('open');
+  setTimeout(() => {
+    const el = document.getElementById('cap-note-text');
+    if (el) el.focus();
+  }, 100);
+  // Set default dates
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('cap-fu-date').value = today;
+  document.getElementById('cap-act-date').value = today;
+}
+
+function closeCapture() {
+  document.getElementById('capture-modal').classList.remove('open');
+  document.getElementById('cap-note-text').value = '';
+  document.getElementById('cap-fu-text').value = '';
+  document.getElementById('cap-act-text').value = '';
+}
+
+function switchCaptureTab(tab, el) {
+  captureTab = tab;
+  ['note','followup','action'].forEach(t => {
+    document.getElementById('cap-' + t).style.display = t === tab ? 'block' : 'none';
+  });
+  document.querySelectorAll('#capture-tabs .tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  else {
+    const tabs = document.querySelectorAll('#capture-tabs .tab');
+    const idx = ['note','followup','action'].indexOf(tab);
+    if (tabs[idx]) tabs[idx].classList.add('active');
+  }
+}
+
+function populateCaptureSelects() {
+  const projectOptions = `<option value="">— none —</option>` + data.projects.map(p => `<option value="${p.id}">${p.icon} ${p.name}</option>`).join('');
+  const personOptions = `<option value="">— none —</option>` + data.people.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  const ownerOptions = `<option value="Justin (me)">Justin (me)</option>` + data.people.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+  ['cap-note-project','cap-fu-project','cap-act-project','cap-fu-person','ol-person','recap-project','recap-person'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (id.includes('person') || id === 'ol-person' || id === 'recap-person') {
+      el.innerHTML = id === 'recap-person' ? personOptions.replace('— none —','Select person') : personOptions;
+    } else {
+      el.innerHTML = id === 'recap-project' ? projectOptions.replace('— none —','Select project') : projectOptions;
+    }
+  });
+  document.getElementById('cap-act-owner').innerHTML = ownerOptions;
+}
+
+function saveCapture() {
+  if (captureTab === 'note') {
+    const text = document.getElementById('cap-note-text').value.trim();
+    if (!text) { showToast('Please enter a note'); return; }
+    const projId = document.getElementById('cap-note-project').value;
+    const personId = document.getElementById('cap-note-person').value;
+    const note = { id: uid(), text, createdAt: new Date().toISOString(), projectId: projId, personId };
+    if (projId) { const p = getProject(projId); if (p) { if(!p.notes)p.notes=[]; p.notes.push(note); } }
+    else if (personId) { const p = getPerson(personId); if (p) { if(!p.notes)p.notes=[]; p.notes.push(note); p.lastContact = note.createdAt.slice(0,10); } }
+    else { if(!data.globalNotes)data.globalNotes=[]; data.globalNotes.push(note); }
+    saveData(); closeCapture(); showToast('Note saved ✓', true);
+  } else if (captureTab === 'followup') {
+    const text = document.getElementById('cap-fu-text').value.trim();
+    if (!text) { showToast('Please enter a follow-up'); return; }
+    const fu = {
+      id: uid(), text,
+      dueDate: document.getElementById('cap-fu-date').value,
+      priority: document.getElementById('cap-fu-priority').value,
+      projectId: document.getElementById('cap-fu-project').value,
+      personId: document.getElementById('cap-fu-person').value,
+      done: false, createdAt: new Date().toISOString()
+    };
+    data.globalFollowups.push(fu);
+    saveData(); closeCapture(); updateBadges(); showToast('Follow-up saved ✓', true);
+  } else if (captureTab === 'action') {
+    const text = document.getElementById('cap-act-text').value.trim();
+    if (!text) { showToast('Please enter an action item'); return; }
+    const fu = {
+      id: uid(), text: `[${document.getElementById('cap-act-owner').value}] ${text}`,
+      dueDate: document.getElementById('cap-act-date').value,
+      priority: 'medium',
+      projectId: document.getElementById('cap-act-project').value,
+      personId: '',
+      done: false, createdAt: new Date().toISOString()
+    };
+    data.globalFollowups.push(fu);
+    saveData(); closeCapture(); updateBadges(); showToast('Action item saved ✓', true);
+  }
+  renderDashboardIfActive();
+  renderView(document.querySelector('.view.active')?.id?.replace('view-','') || 'dashboard');
+}
+
+// ──────────────────────────────────────────────────────────
+// OUTLOOK
+// ──────────────────────────────────────────────────────────
+function renderOutlook() {
+  populateCaptureSelects();
+  document.getElementById('ol-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('recap-date').value = new Date().toISOString().slice(0,10);
+
+  // Email quick links
+  document.getElementById('outlook-email-links').innerHTML = data.people.map(p => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray-border)">
+      <div class="person-avatar" style="width:32px;height:32px;font-size:11px">${initials(p.name)}</div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600">${p.name}</div>
+        <div style="font-size:11px;color:var(--gray-mid)">${p.email}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <a href="mailto:${p.email}" class="outlook-btn outlook-btn-email">✉</a>
+        <a href="https://teams.microsoft.com/l/chat/0/0?users=${p.email}" target="_blank" class="outlook-btn outlook-btn-teams">💬</a>
+      </div>
+    </div>
+  `).join('');
+}
+
+function buildOutlookLinks() {
+  const personId = document.getElementById('ol-person').value;
+  const person = getPerson(personId);
+  const subject = document.getElementById('ol-subject').value || 'Meeting';
+  const type = document.getElementById('ol-type').value;
+  const date = document.getElementById('ol-date').value;
+  const duration = document.getElementById('ol-duration').value;
+
+  const email = person ? person.email : '';
+  const calSubject = encodeURIComponent(`${type}: ${subject}`);
+  const mailtoLink = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(`Hi ${person?.name?.split(' ')[0] || ''},\n\nI wanted to follow up on ${subject}.\n\nBest,\nJustin`)}`;
+
+  document.getElementById('outlook-generated').style.display = 'block';
+  document.getElementById('outlook-links-output').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <a href="${mailtoLink}" class="outlook-btn outlook-btn-email" style="padding:8px 14px;font-size:12px">✉ Open email draft${person ? ` to ${person.name}` : ''}</a>
+      <a href="https://outlook.office.com/calendar/0/deeplink/compose?subject=${calSubject}&to=${encodeURIComponent(email)}&startdt=${date}" target="_blank" class="outlook-btn outlook-btn-calendar" style="padding:8px 14px;font-size:12px">📅 Open Outlook Calendar invite</a>
+      ${person ? `<a href="https://teams.microsoft.com/l/chat/0/0?users=${person.email}&message=${encodeURIComponent('Hi, can we find time to discuss ' + subject + '?')}" target="_blank" class="outlook-btn outlook-btn-teams" style="padding:8px 14px;font-size:12px">💬 Message on Teams</a>` : ''}
+    </div>
+  `;
+}
+
+function buildRecapEmail() {
+  const projId = document.getElementById('recap-project').value;
+  const personId = document.getElementById('recap-person').value;
+  const proj = getProject(projId);
+  const person = getPerson(personId);
+  const date = document.getElementById('recap-date').value;
+  const points = document.getElementById('recap-points').value.trim();
+  const actions = document.getElementById('recap-actions').value.trim();
+
+  const subject = `Recap: ${proj?.name || 'Meeting'} – ${fmtDate(date)}`;
+  const body = `Hi ${person?.name?.split(' ')[0] || 'Team'},\n\nThanks for the conversation today. Here's a quick recap:\n\nKEY DISCUSSION POINTS\n${points || '–'}\n\nACTION ITEMS\n${actions || '–'}\n\nLet me know if I missed anything.\n\nBest,\nJustin`;
+
+  const mailto = `mailto:${person?.email || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.location.href = mailto;
+}
+
+function openOutlookEmail(projId, email) {
+  const p = getProject(projId);
+  const subject = encodeURIComponent(`Re: ${p?.name || 'Project'} – Update`);
+  window.location.href = `mailto:?subject=${subject}`;
+}
+
+// ──────────────────────────────────────────────────────────
+// ADD PROJECT / PERSON
+// ──────────────────────────────────────────────────────────
+function openAddProject() {
+  document.getElementById('edit-modal-title').textContent = 'Add Project';
+  document.getElementById('edit-modal-body').innerHTML = `
+    <div class="form-group"><label class="form-label">Project Name</label><input type="text" class="form-input" id="new-proj-name" placeholder="e.g. Sompo Automation"></div>
+    <div class="form-group"><label class="form-label">Client / Owner</label><input type="text" class="form-input" id="new-proj-client" placeholder="e.g. Sompo"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Status</label>
+        <select class="form-select" id="new-proj-status">
+          <option value="on_track">✓ On Track</option>
+          <option value="at_risk">⚠ At Risk</option>
+          <option value="paused">⏸ Paused</option>
+          <option value="needs_decision">🔴 Needs Decision</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Icon (emoji)</label><input type="text" class="form-input" id="new-proj-icon" placeholder="📦" maxlength="2"></div>
+    </div>
+  `;
+  document.getElementById('edit-modal-save').onclick = saveNewProject;
+  document.getElementById('edit-modal').classList.add('open');
+}
+
+function saveNewProject() {
+  const name = document.getElementById('new-proj-name').value.trim();
+  if (!name) { showToast('Name required'); return; }
+  data.projects.push({
+    id: uid(),
+    name,
+    client: document.getElementById('new-proj-client').value.trim(),
+    status: document.getElementById('new-proj-status').value,
+    icon: document.getElementById('new-proj-icon').value || '📦',
+    notes: [], followups: [], lastUpdated: new Date().toISOString().slice(0,10)
+  });
+  saveData();
+  closeEditModal();
+  renderProjects();
+  showToast('Project added ✓', true);
+}
+
+function openAddPerson() {
+  document.getElementById('edit-modal-title').textContent = 'Add Person';
+  document.getElementById('edit-modal-body').innerHTML = `
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Full Name</label><input type="text" class="form-input" id="new-per-name" placeholder="First Last"></div>
+      <div class="form-group"><label class="form-label">Role / Title</label><input type="text" class="form-input" id="new-per-role" placeholder="Product Manager"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="new-per-email" placeholder="name@resourcepro.com"></div>
+      <div class="form-group"><label class="form-label">Location / TZ</label><input type="text" class="form-input" id="new-per-loc" placeholder="US / India / etc."></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Type</label>
+      <select class="form-select" id="new-per-type">
+        <option value="team">👥 Direct Report</option>
+        <option value="collaborator">🤝 Collaborator</option>
+      </select>
+    </div>
+  `;
+  document.getElementById('edit-modal-save').onclick = saveNewPerson;
+  document.getElementById('edit-modal').classList.add('open');
+}
+
+function saveNewPerson() {
+  const name = document.getElementById('new-per-name').value.trim();
+  if (!name) { showToast('Name required'); return; }
+  const personType = document.getElementById('new-per-type')?.value || 'team';
+  data.people.push({
+    id: uid(), name,
+    role: document.getElementById('new-per-role').value.trim(),
+    email: document.getElementById('new-per-email').value.trim(),
+    location: document.getElementById('new-per-loc').value.trim(),
+    type: personType,
+    coachingFocus: '', notes: [], followups: [],
+    lastContact: new Date().toISOString().slice(0,10)
+  });
+  saveData();
+  closeEditModal();
+  renderPeople();
+  document.getElementById('badge-people').textContent = data.people.filter(p => p.type === 'team' || !p.type).length;
+  showToast('Person added ✓', true);
+}
+
+function openEditPerson(id) {
+  const p = getPerson(id);
+  if (!p) return;
+  document.getElementById('edit-modal-title').textContent = `Edit: ${p.name}`;
+  document.getElementById('edit-modal-body').innerHTML = `
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Full Name</label><input type="text" class="form-input" id="ep-name" value="${escHtml(p.name)}"></div>
+      <div class="form-group"><label class="form-label">Role / Title</label><input type="text" class="form-input" id="ep-role" value="${escHtml(p.role||'')}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="ep-email" value="${escHtml(p.email||'')}"></div>
+      <div class="form-group"><label class="form-label">Location / TZ</label><input type="text" class="form-input" id="ep-loc" value="${escHtml(p.location||'')}"></div>
+    </div>
+  `;
+  document.getElementById('edit-modal-save').onclick = () => {
+    p.name = document.getElementById('ep-name').value.trim() || p.name;
+    p.role = document.getElementById('ep-role').value.trim();
+    p.email = document.getElementById('ep-email').value.trim();
+    p.location = document.getElementById('ep-loc').value.trim();
+    saveData(); closeEditModal(); openPersonDetail(id); showToast('Saved ✓', true);
+  };
+  document.getElementById('edit-modal').classList.add('open');
+}
+
+function closeEditModal() { document.getElementById('edit-modal').classList.remove('open'); }
+
+// ──────────────────────────────────────────────────────────
+// DETAIL PANEL
+// ──────────────────────────────────────────────────────────
+function openDetail() {
+  document.getElementById('detail-overlay').classList.add('open');
+  document.getElementById('detail-panel').classList.add('open');
+}
+function closeDetail() {
+  document.getElementById('detail-overlay').classList.remove('open');
+  document.getElementById('detail-panel').classList.remove('open');
+  document.getElementById('detail-icon').style.cssText = '';
+}
+
+// ──────────────────────────────────────────────────────────
+// SEARCH
+// ──────────────────────────────────────────────────────────
+function globalSearch(q) {
+  if (!q.trim()) return;
+  // Could expand this — for now just navigate to notes
+}
+
+// ──────────────────────────────────────────────────────────
+// TOAST
+// ──────────────────────────────────────────────────────────
+function showToast(msg, success = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (success ? ' success' : '');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => { t.classList.remove('show'); }, 2500);
+}
+
+// ──────────────────────────────────────────────────────────
+// UTILS
+// ──────────────────────────────────────────────────────────
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ──────────────────────────────────────────────────────────
+// INIT
+// ──────────────────────────────────────────────────────────
+(function init() {
+  // Set date
+  document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+  // Update badges
+  updateBadges();
+  // Render dashboard
+  renderDashboard();
+  // Auto-save every 2 min
+  setInterval(() => { saveData(); }, 120000);
+  // Keyboard shortcut: Ctrl/Cmd + K = quick capture
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); openCapture(); }
+    if (e.key === 'Escape') { closeCapture(); closeDetail(); closeEditModal(); closeSyncModal(); }
+  });
+  // Token lives in localStorage — enter via ☁ Confluence sync in sidebar
+  // Auto-load from Confluence if connected and not file://
+  if (localStorage.getItem(CF_TOKEN_KEY) && window.location.protocol !== 'file:') {
+    syncSetDot('busy', '☁ Loading…');
+    confluencePull().catch(() => {});
+  } else if (localStorage.getItem(CF_TOKEN_KEY) && window.location.protocol === 'file:') {
+    syncSetDot('ok', '☁ Connected (open via server to sync)');
+  }
+})();
+</script>
+<!-- ── SYNC MODAL ────────────────────────────────────────── -->
+<div id="modal-sync" class="sync-modal-overlay" style="display:none" onclick="if(event.target===this)closeSyncModal()">
+  <div class="sync-modal">
+    <div class="sync-modal-head">
+      <h3>☁ Confluence Sync</h3>
+      <span style="cursor:pointer;opacity:0.7;font-size:18px" onclick="closeSyncModal()">✕</span>
+    </div>
+    <div class="sync-modal-body">
+      <div id="sync-status-msg" class="sync-status-msg"></div>
+
+      <!-- CORS warning shown when opened from file:// -->
+      <div id="cors-warning" class="cors-warning" style="display:none">
+        <strong>⚠ Local server required for sync.</strong><br>
+        To enable Confluence sync, open a Terminal and run:<br>
+        <code id="cors-cmd">cd ~/Desktop && python3 -m http.server 8765</code>
+        Then open: <a href="http://localhost:8765/Justin_Tracker.html" target="_blank" style="color:inherit;font-weight:600">http://localhost:8765/Justin_Tracker.html</a>
+      </div>
+
+      <div class="sync-section">
+        <p>Connect to your private Confluence space so your tracker data stays in sync across all your devices. Your data is stored on a private page only you can see.</p>
+        <div class="sync-field">
+          <label>Confluence API Token</label>
+          <input type="password" id="sync-token-input" placeholder="Paste your Atlassian API token…" autocomplete="off">
+          <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank" class="sync-link">Get your API token at id.atlassian.com →</a>
+        </div>
+      </div>
+
+      <div class="sync-actions">
+        <button class="btn-sync-primary" id="btn-connect" onclick="confluenceConnect()">Connect &amp; Test</button>
+        <button class="btn-sync-secondary" onclick="closeSyncModal()">Cancel</button>
+      </div>
+
+      <hr class="sync-divider" id="sync-divider-hr" style="display:none">
+
+      <div id="sync-connected-actions" style="display:none">
+        <p style="font-size:13px;color:var(--gray-mid);margin-bottom:10px">Sync is active. Data auto-saves to Confluence on every save.</p>
+        <div class="sync-actions">
+          <button class="btn-sync-primary" onclick="confluencePush()">↑ Push to Confluence now</button>
+          <button class="btn-sync-secondary" onclick="confluencePull()">↓ Pull from Confluence</button>
+          <button class="btn-sync-secondary" onclick="confluenceDisconnect()" style="margin-left:auto;color:#c0392b;border-color:#c0392b">Disconnect</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
